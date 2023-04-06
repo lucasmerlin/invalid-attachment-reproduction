@@ -12,16 +12,6 @@ struct Dot {
     @builtin(instance_index) instanceIndex: u32,
 }
 
-struct Uniforms {
-    frame: u32,
-    _padding: u32,
-    _padding2: u32,
-    _padding3: u32,
-}
-
-@group(0) @binding(0)
-var<uniform> uniforms: Uniforms;
-
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) dot: vec2<f32>,
@@ -35,7 +25,7 @@ struct VertexOutput {
 fn vs_main(vertex: VertexInput, dot: Dot) -> VertexOutput {
     var out: VertexOutput;
 
-    out.position = vec4<f32>((vertex.position - 0.5) * dot.radius + dot.screenPosition + sin(f32(uniforms.frame + dot.instanceIndex) / 10.0) * 0.01, 0.0, 1.0);
+    out.position = vec4<f32>((vertex.position - 0.5) * dot.radius + dot.screenPosition * 0.01, 0.0, 1.0);
     out.dot =  vertex.position - 0.25;
     out.radius = dot.radius;
     out.color = dot.color;
@@ -47,13 +37,12 @@ fn vs_main(vertex: VertexInput, dot: Dot) -> VertexOutput {
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 
-    let a = input.dot - vec2(0.25, 0.25);
-    let distance = dot(a, a) * 2.0;
-
-    let circle = (1.0) - smoothstep(0.0 + input.hardness / 2.0, 0.5, distance);
-
-
-
-    return vec4(input.color.xyz, input.color.w * circle);
+//    let a = input.dot - vec2(0.25, 0.25);
+//    let distance = dot(a, a) * 2.0;
+//
+//    let circle = (1.0) - smoothstep(0.0 + input.hardness / 2.0, 0.5, distance);
+//
+//    return vec4(input.color.xyz, input.color.w * circle);
 }
