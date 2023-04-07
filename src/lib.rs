@@ -1,7 +1,5 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
-mod app;
-mod surface_view;
-mod surface;
+pub mod surface_view;
+pub mod surface;
 
-pub use app::TemplateApp;

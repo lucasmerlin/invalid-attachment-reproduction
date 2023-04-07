@@ -3,20 +3,24 @@ use std::sync::Arc;
 
 use eframe::egui_wgpu;
 use eframe::egui_wgpu::RenderState;
+use tracing::info;
+use wgpu::TextureFormat;
 use wgpu::util::DeviceExt;
 
 use crate::surface::HpSurface;
 
-pub struct SurfaceView;
 
-impl SurfaceView {
-    pub fn new(surface: HpSurface, wgpu_render_state: &RenderState) -> Self {
+pub struct SurfaceRenderResources {
+    pipeline: wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    texture_bind_group: wgpu::BindGroup,
+    uniform_buffer: wgpu::Buffer,
+    surface: HpSurface,
+}
 
-        if wgpu_render_state.renderer.read().paint_callback_resources.contains::<SurfaceRenderResources>() {
-            return Self {}
-        }
+impl SurfaceRenderResources {
 
-        let device = &wgpu_render_state.device;
+    pub fn new(device: &wgpu::Device, surface: HpSurface, format: TextureFormat) -> Self {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("custom3d"),
@@ -80,7 +84,7 @@ impl SurfaceView {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
-                targets: &[Some(wgpu_render_state.target_format.into())],
+                targets: &[Some(format.into())],
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: None,
@@ -120,61 +124,17 @@ impl SurfaceView {
             label: Some("texture_bind_group"),
         });
 
-        // Because the graphics pipeline must have the same lifetime as the egui render pass,
-        // instead of storing the pipeline in our `Custom3D` struct, we insert it into the
-        // `paint_callback_resources` type map, which is stored alongside the render pass.
-        wgpu_render_state
-            .renderer
-            .write()
-            .paint_callback_resources
-            .insert(SurfaceRenderResources {
-                pipeline,
-                bind_group,
-                texture_bind_group,
-                uniform_buffer,
-                surface,
-            });
-
-        Self {}
+        Self {
+            pipeline,
+            bind_group,
+            texture_bind_group,
+            uniform_buffer,
+            surface,
+        }
     }
 
-
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let (rect, response) =
-            ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
-
-
-        let cb = egui_wgpu::CallbackFn::new()
-            .prepare(move |device, queue, _encoder, paint_callback_resources| {
-                let resources: &SurfaceRenderResources = paint_callback_resources.get().unwrap();
-                resources.prepare(device, queue);
-                Vec::new()
-            })
-            .paint(move |_info, render_pass, paint_callback_resources| {
-                let resources: &SurfaceRenderResources = paint_callback_resources.get().unwrap();
-                resources.paint(render_pass);
-            });
-
-        let callback = egui::PaintCallback {
-            rect,
-            callback: Arc::new(cb),
-        };
-
-        ui.painter().add(callback);
-    }
-}
-
-
-struct SurfaceRenderResources {
-    pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
-    texture_bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
-    surface: HpSurface,
-}
-
-impl SurfaceRenderResources {
-    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue) {
+        info!("Preparing surface");
         self.surface.render();
         // Update our uniform buffer with the angle from the UI
         queue.write_buffer(
@@ -184,7 +144,7 @@ impl SurfaceRenderResources {
         );
     }
 
-    fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
+    pub fn paint<'rp>(&'rp self, render_pass: &mut wgpu::RenderPass<'rp>) {
 
 
         // Draw our triangle!
